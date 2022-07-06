@@ -1,5 +1,19 @@
 # zk-vote-hackathon
-Playing around with Zero-Knowledge proofs for anonymous voting
+A quick-and-dirty hackathon project, building a simple voting protocol using zero-knowledge proofs.
+
+The basic protocol is inspired by [Zerocoin](https://zerocoin.org/) and works as follows:
+- To cast a vote, a voter with a white-listed public key does the following:
+  - It generates a random 128-bit `secret`
+  - It generates a random 128-bit `serial_number`
+  - It choses a boolean `vote` (yes or no)
+  - It computes a `commit = Hash(secret, serial_number, vote)`, and sends it to the voting server, signed with its public key
+- The voting server collects and publishes all commits
+- Then, the voter can reveal the vote, by publishing the `serial_number`, `vote`, and a zero-knowledge prove that it knows a `secret` such that it computes to a `commit` that is in the public list of all commits. The voting server:
+  - Validates the proof
+  - Ensures that the same serial number is not used more than once
+  - Publishes the voting result
+  
+Because the connection between the `serial_number` and the `commit` never is revealed, the `vote` cannot be connected to the voter's public key.
 
 ## Setup
 
@@ -15,6 +29,7 @@ zk-vote-container
 ```
 
 Then, connect to [http://localhost:8443](http://localhost:8443) for a Visual Studio Code Session.
+The password necessary to access VS Code will be printed in the console.
 
 ## Running the server
 

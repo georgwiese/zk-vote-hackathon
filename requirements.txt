@@ -1,0 +1,7 @@
+Flask
+typer
+click==7.1.1
+ecdsa
+fastecdsa
+sympy
+cairo-lang

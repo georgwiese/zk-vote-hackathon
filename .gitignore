@@ -1,3 +1,6 @@
+private_key.pem
+vote.json
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

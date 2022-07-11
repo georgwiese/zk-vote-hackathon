@@ -1,5 +1,7 @@
 private_key.pem
+key.pub
 vote.json
+.Trash*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

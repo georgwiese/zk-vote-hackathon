@@ -5,11 +5,14 @@ from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
-app = Flask(__name__)
+from pathlib import Path
 
-PUBLIC_KEY_WHITELIST = [
-    b'-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDk7tgFSHbElhVLKbqhIszizQxb\nh2jv9DgtOsX+liT2q2aUDXBKlyM0oZ6busP9JAA1Wv0jLDtHaK3ebX11TgDSJspS\nzCsQaTCvfyrX5shUgFkXQJTzyKgCX0h58mu9D4gG3Los5PvBShTi02lagowk15ql\nYJ1+b2vtUgXVgPYk1wIDAQAB\n-----END PUBLIC KEY-----'.decode("utf-8"),
-]
+PUBLIC_KEY_WHITELIST = []
+for public_key_path in Path("../accepted_public_keys").glob("*.pub"):
+    with public_key_path.open() as f:
+        PUBLIC_KEY_WHITELIST.append(f.read())
+
+app = Flask(__name__)
 
 keys_with_commitments = []
 commitments = []
@@ -24,7 +27,12 @@ def vote():
     public_key_str = data["public_key"]
     signature = bytes.fromhex(data["signature"])
     
-    assert public_key_str in PUBLIC_KEY_WHITELIST, "Public key not in whitelist!"
+    assert (
+        public_key_str in PUBLIC_KEY_WHITELIST,
+        "Public key not in whitelist!\n"
+        + f"Public key: {public_key_str}\n"
+        + f"White list: {PUBLIC_KEY_WHITELIST}"
+    )
     assert public_key_str not in keys_with_commitments, "Public key already voted!"
 
     public_key = RSA.importKey(public_key_str)

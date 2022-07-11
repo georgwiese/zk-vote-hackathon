@@ -25,7 +25,7 @@ $ docker build . -t zk-vote-container
 $ docker run --rm --name vscode \
   -it -p 8443:8443 -p 5000:5000 \
   -v $(pwd):/code \
-zk-vote-container
+  zk-vote-container
 ```
 
 Then, connect to [http://localhost:8443](http://localhost:8443) for a Visual Studio Code Session.
@@ -33,13 +33,12 @@ The password necessary to access VS Code will be printed in the console.
 
 ## Running the server
 
-Make sure all public keys of people with a vote right are included in `PUBLIC_KEY_WHITELIST` in `src/voting_server.py`.
+Make sure all public keys of people with a vote right are included in the `accepted_public_keys` directory when the server starts.
 
 To run flask app:
 
 ```
-$ cd src
-$ FLASK_APP=voting_server flask run -h 0.0.0.0
+$ cd src && FLASK_APP=voting_server FLASK_ENV=development flask run -h 0.0.0.0
 ```
 
 Then, navigate to [http://localhost:5000/status](http://localhost:5000/status) to see the current state of the server.
@@ -52,7 +51,7 @@ $ openssl genrsa -out private_key.pem 1024
 ```
 
 This will generate a `private_key.pem` in your working directory, which should be kept secret.
-Note that the public key first needs to be whitelisted, as mentioned above.
+To whitelist the public key, copy `key.pub` into `accepted_public_keys`.
 
 To vote, run:
 ```

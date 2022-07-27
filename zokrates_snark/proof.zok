@@ -1,0 +1,30 @@
+import "hashes/pedersen/512bit" as pedersen;
+import "hashes/sha256/sha256" as sha256;
+import "hashes/sha256/512bitPadded" as sha256padded;
+import "hashes/sha256/shaRound" as shaRound;
+
+// We have to know the number of known hashes at compile time
+// If actual number is larger, users should sample random known hashes
+// (making sure that the actual hash is among the sampled values).
+// So, N will be the size of the anonimity set.
+// If the actual number is larger, known hashes should be filled up
+// with zeros.
+const u32 N = 10;
+
+def main(bool vote, u32[4] serial_number, private u32[4] secret, u32[N][8] known_hashes) {
+    u32[8] hash = sha256padded([...serial_number, ...secret], [0, 0, 0, 0, 0, 0, 0, if vote { 1 } else { 0 }]);
+
+    bool mut matches_any_hash = false;
+    for u32 i in 0..N {
+        
+        bool mut matches_current_hash = true;
+        for u32 j in 0..8 {
+            matches_current_hash = matches_current_hash && (hash[j] == known_hashes[i][j]);
+        }
+
+        matches_any_hash = matches_any_hash || matches_current_hash;
+    }
+
+    assert(matches_any_hash);
+    return;
+}

@@ -17,6 +17,8 @@ Because the connection between the `serial_number` and the `commit` never is rev
 
 ## Setup
 
+### Via Docker
+
 ```bash
 $ docker build . -t zk-vote-container
 ```
@@ -31,6 +33,11 @@ $ docker run --rm --name vscode \
 Then, connect to [http://localhost:8443](http://localhost:8443) for a Visual Studio Code Session.
 The password necessary to access VS Code will be printed in the console.
 
+### Local setup
+
+- Install Zokrates by running `curl -LSfs get.zokrat.es | sh` and adding `~/.zokrates/bin` to your `PATH` variable.
+- Run `pip install -r /requirements.txt`
+
 ## Running the server
 
 Make sure all public keys of people with a vote right are included in the `accepted_public_keys` directory when the server starts.
@@ -38,7 +45,7 @@ Make sure all public keys of people with a vote right are included in the `accep
 To run flask app:
 
 ```
-$ cd src && FLASK_APP=voting_server FLASK_ENV=development flask run -h 0.0.0.0
+$ cd src && FLASK_APP=voting_server FLASK_ENV=development python -m flask run -h 0.0.0.0
 ```
 
 Then, navigate to [http://localhost:5000/status](http://localhost:5000/status) to see the current state of the server.

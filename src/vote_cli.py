@@ -1,5 +1,4 @@
 import typer
-import hashlib
 import os
 import requests
 import json

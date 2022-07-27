@@ -1,5 +1,6 @@
 Flask
 typer
+markupsafe==2.0.1
 click==7.1.1
 ecdsa
 fastecdsa

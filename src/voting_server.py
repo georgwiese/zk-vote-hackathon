@@ -1,5 +1,6 @@
 from flask import Flask, request
 import json
+import os
 
 from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
@@ -38,7 +39,8 @@ def vote():
         + f"Public key: {public_key_str}\n"
         + f"White list: {PUBLIC_KEY_WHITELIST}"
     )
-    assert public_key_str not in keys_with_commitments, "Public key already voted!"
+    if "DEBUG_ALLOW_DOUBLE_VOTING" not in os.environ:
+        assert public_key_str not in keys_with_commitments, "Public key already voted!"
 
     public_key = RSA.importKey(public_key_str)
     commitment_hash = SHA256.new()

@@ -1,7 +1,5 @@
 from abc import ABC, abstractmethod
-from Crypto.Hash import SHA256
 import hashlib
-import sys
 import shutil
 import os
 import random
@@ -9,7 +7,6 @@ from pathlib import Path
 import json
 from typing import List, Tuple
 from tempfile import TemporaryDirectory
-from zokrates_pycrypto.gadgets.pedersenHasher import PedersenHasher
 
 class AbstractProver(ABC):
 

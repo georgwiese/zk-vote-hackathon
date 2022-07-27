@@ -15,14 +15,17 @@ class AbstractProver(ABC):
 
     @abstractmethod
     def compute_commit(self, serial_number: bytes, secret: bytes, vote: bool) -> bytes:
+        """Hashes serial number, secret, and vote."""
         pass
 
     @abstractmethod
     def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, List[bytes]]:
+        """Computes a proof that serial number, secret, and vote hash to a value that's in `known_hashes`."""
         pass
     
     @abstractmethod
     def verify(self, serial_number: bytes, vote: bool, known_hashes: List[bytes], proof: dict) -> None:
+        """Verfies a proof, including that fact that public arguments are as stated."""
         pass
 
 class ZokratesProver(AbstractProver):

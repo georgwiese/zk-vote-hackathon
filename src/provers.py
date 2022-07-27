@@ -17,7 +17,11 @@ class AbstractProver(ABC):
 
     @abstractmethod
     def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, List[bytes]]:
-        """Computes a proof that serial number, secret, and vote hash to a value that's in `known_hashes`."""
+        """Computes a proof that serial number, secret, and vote hash to a value that's in `known_hashes`.
+        
+        The `known_hashes` might be modified by the prover, for example by sampling a subset,
+        or adding zero hashes. The modified `known_hashes` are returned with the proof.
+        """
         pass
     
     @abstractmethod

@@ -5,12 +5,17 @@ from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
+from provers import ZokratesProver
+
 from pathlib import Path
 
 PUBLIC_KEY_WHITELIST = []
 for public_key_path in Path("../accepted_public_keys").glob("*.pub"):
     with public_key_path.open() as f:
         PUBLIC_KEY_WHITELIST.append(f.read())
+
+# Flask server is started from <project dir> / src
+PROVER = ZokratesProver(Path(".."))
 
 app = Flask(__name__)
 
@@ -33,7 +38,7 @@ def vote():
         + f"Public key: {public_key_str}\n"
         + f"White list: {PUBLIC_KEY_WHITELIST}"
     )
-    # assert public_key_str not in keys_with_commitments, "Public key already voted!"
+    assert public_key_str not in keys_with_commitments, "Public key already voted!"
 
     public_key = RSA.importKey(public_key_str)
     commitment_hash = SHA256.new()
@@ -41,7 +46,7 @@ def vote():
     verifier = PKCS1_v1_5.new(public_key)
     assert verifier.verify(commitment_hash, signature), "Signature does not verify!"
 
-    commitments.append(commitment)
+    commitments.append(commitment.hex())
     keys_with_commitments.append(public_key_str)
 
     return "OK"
@@ -54,15 +59,17 @@ def reveal_vote():
     global yes_votes
 
     data = json.loads(request.data)
-    serial_number = data["serial_number"]
+    serial_number = bytes.fromhex(data["serial_number"])
     vote = data["vote"]
     commitments_for_proof = data["commitments"]
+    proof = data["proof"]
 
     assert serial_number not in seen_serial_numbers, "Serial number already revealed!"
     for commitment in commitments_for_proof:
-        assert commitment in commitments, "Proof used unknown commitments!"
+        if commitment != "0" * 64:  # Prover is allowed to add zero hashes
+            assert commitment in commitments, f"Proof used unknown commitments: {commitment}"
 
-    # TODO: Verify proof
+    PROVER.verify(serial_number, vote, [bytes.fromhex(c_hex) for c_hex in commitments_for_proof], proof)
 
     seen_serial_numbers.append(serial_number)
     if vote:

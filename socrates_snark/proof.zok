@@ -1,6 +1,0 @@
-import "hashes/pedersen/512bit" as pedersen;
-
-def main(private u32[4] serial_number, private u32[4] secret, private bool vote) -> u32[8] {
-    u32[8] commit = pedersen([..serial_number, ..secret, 0, 0, 0, 0, 0, 0, 0, if vote { 1 } else { 0 }]);
-    return commit;
-}

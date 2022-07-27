@@ -4,24 +4,25 @@ import os
 import requests
 import json
 
+from pathlib import Path
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
-from zk_strategies import ZokratesZkStrategy
+from provers import ZokratesProver
 
 VOTE_SERVER = "http://0.0.0.0:5000"
-ZK_STRATEGY = ZokratesZkStrategy()
+PROVER = ZokratesProver(Path("."))
 
 app = typer.Typer()
 
 @app.command()
 def vote(vote: bool):
 
-    serial_number = bytes.fromhex("4fc7eede15c80b26bebd637fb992cfb9") #os.urandom(128 // 8)
-    secret = bytes.fromhex("4844d41cd43b2cdfd106b1867408e1ee") #os.urandom(128 // 8)
+    serial_number = os.urandom(128 // 8)
+    secret = os.urandom(128 // 8)
 
-    commitment = ZK_STRATEGY.compute_commit(serial_number, secret, vote)
+    commitment = PROVER.compute_commit(serial_number, secret, vote)
 
     commitment_hash = SHA256.new()
     commitment_hash.update(commitment)
@@ -40,8 +41,6 @@ def vote(vote: bool):
     print(f"Commitment:    {commitment.hex()}")
     print(f"Public key:    {public_key_bytes}")
     print(f"Signature:     {signature.hex()}")
-
-    print([int(commitment.hex()[i:i+8], 16) for i in range(0, 64, 8)])
 
     vote_data = {
         "commitment": commitment.hex(),
@@ -68,18 +67,22 @@ def reveal():
     with open("vote.json", "r") as f:
         vote_data = json.load(f)
 
-    serial_number = vote_data["serial_number"]
-    secret = vote_data["secret"]
+    serial_number = bytes.fromhex(vote_data["serial_number"])
+    secret = bytes.fromhex(vote_data["secret"])
     vote = vote_data["vote"]
 
-    commitments = requests.get(f"{VOTE_SERVER}/status").json()["commitments"]
+    known_hashes = [
+        bytes.fromhex(hash_hex)
+        for hash_hex in requests.get(f"{VOTE_SERVER}/status").json()["commitments"]
+    ]
 
-    # TODO: Generate proof
+    proof, known_hashes = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
 
     reveal_data = {
-        "serial_number": serial_number,
+        "serial_number": serial_number.hex(),
         "vote": vote,
-        "commitments": commitments,
+        "commitments": [hash_bytes.hex() for hash_bytes in known_hashes],
+        "proof": proof,
     }
 
     r = requests.post(f"{VOTE_SERVER}/reveal_vote", json=reveal_data)

@@ -23,7 +23,7 @@ yes_votes = 0
 @app.route("/vote", methods=["POST"])
 def vote():
     data = json.loads(request.data)
-    commitment = data["commitment"]
+    commitment = bytes.fromhex(data["commitment"])
     public_key_str = data["public_key"]
     signature = bytes.fromhex(data["signature"])
     
@@ -33,11 +33,11 @@ def vote():
         + f"Public key: {public_key_str}\n"
         + f"White list: {PUBLIC_KEY_WHITELIST}"
     )
-    assert public_key_str not in keys_with_commitments, "Public key already voted!"
+    # assert public_key_str not in keys_with_commitments, "Public key already voted!"
 
     public_key = RSA.importKey(public_key_str)
     commitment_hash = SHA256.new()
-    commitment_hash.update(commitment.encode("utf-8"))
+    commitment_hash.update(commitment)
     verifier = PKCS1_v1_5.new(public_key)
     assert verifier.verify(commitment_hash, signature), "Signature does not verify!"
 

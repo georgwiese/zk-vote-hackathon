@@ -3,8 +3,8 @@ A quick-and-dirty hackathon project, building a simple voting protocol using zer
 
 The basic protocol is inspired by [Zerocoin](https://zerocoin.org/) and works as follows:
 - To cast a vote, a voter with a white-listed public key does the following:
-  - It generates a random 256-bit `secret`
-  - It generates a random 256-bit `serial_number`
+  - It generates a random 128-bit `secret`
+  - It generates a random 128-bit `serial_number`
   - It choses a boolean `vote` (yes or no)
   - It computes a `commit = Hash(secret, serial_number, vote)`, and sends it to the voting server, signed with its public key
 - The voting server collects and publishes all commits

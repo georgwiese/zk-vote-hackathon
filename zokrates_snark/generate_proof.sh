@@ -18,6 +18,4 @@ zokrates generate-proof
 
 zokrates inspect
 
-#rm out.wtns witness
-
 zokrates verify

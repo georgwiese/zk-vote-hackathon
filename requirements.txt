@@ -5,4 +5,3 @@ ecdsa
 fastecdsa
 sympy
 cairo-lang
-zokrates_pycrypto

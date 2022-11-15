@@ -36,7 +36,7 @@ The password necessary to access VS Code will be printed in the console.
 ### Local setup
 
 - Install Zokrates by running `curl -LSfs get.zokrat.es | sh` and adding `~/.zokrates/bin` to your `PATH` variable.
-- Run `pip install -r /requirements.txt`
+- Run `pip install -r ./requirements.txt`
 
 ## Running the server
 

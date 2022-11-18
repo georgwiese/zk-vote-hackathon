@@ -5,7 +5,7 @@ pragma solidity >=0.7.0 <0.9.0;
 contract Ballot {
 
     struct Voter {
-        bool has_vote_right;
+        bool hasRightToVote;
         bool voted;  // if true, that person already voted
     }
 
@@ -18,14 +18,16 @@ contract Ballot {
 
     address public chairperson;
     mapping(address => Voter) public voters;
-    uint public yes_counts;
-    uint public vote_counts;
+    mapping(bytes32 => bool) public commits;
+    mapping(bytes32 => bool) public seenSerialNumbers;
+    uint public yesCount;
+    uint public voteCount;
 
     constructor() {
         chairperson = msg.sender;
 
         voters[chairperson] = Voter({
-            has_vote_right: true,
+            hasRightToVote: true,
             voted: false
         });
     }
@@ -39,21 +41,44 @@ contract Ballot {
             !voters[voter].voted,
             "The voter already voted."
         );
-        require(voters[voter].has_vote_right == false);
-        voters[voter].has_vote_right = true;
+        require(voters[voter].hasRightToVote == false);
+        voters[voter].hasRightToVote = true;
     }
 
 
-    function vote(bool has_voted_yes) public {
+    function vote(bytes32 commit) public {
         Voter storage sender = voters[msg.sender];
-        require(sender.has_vote_right, "Has no right to vote");
+        require(sender.hasRightToVote, "Has no right to vote");
         require(!sender.voted, "Already voted.");
         sender.voted = true;
 
-        if (has_voted_yes) {
-            yes_counts += 1;
-        }
-        vote_counts += 1;
+        commits[commit] = true;
     }
+
+    function revealVote(bool vote, bytes32 serialNumber, bytes32[] commitsForProof, bytes32 proof) public {
+        // validate proof
+        // call sokrates
+
+        // is commitsForProof subset of commits
+        for (uint i = 0; i < commitsForProof.length; ++i) {
+            bytes32 commitInProof = commitsForProof[i];
+            if (commitInProof != 0) {
+                require(commits[commitInProof]);
+            }
+            
+        }
+
+        require(!seenSerialNumbers[serialNumber], "Already revealed!");
+        seenSerialNumbers[serialNumber] = true; 
+
+
+        if (vote) {
+            yesCount += 1;
+        }
+        voteCount += 1;
+
+    }
+
+
 
 }

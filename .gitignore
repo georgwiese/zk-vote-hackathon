@@ -1,4 +1,5 @@
 private_key.pem
+node_modules
 key.pub
 vote.json
 .Trash*

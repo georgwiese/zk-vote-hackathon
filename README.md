@@ -37,6 +37,7 @@ The password necessary to access VS Code will be printed in the console.
 
 - Install Zokrates by running `curl -LSfs get.zokrat.es | sh` and adding `~/.zokrates/bin` to your `PATH` variable.
 - Run `pip install -r ./requirements.txt`
+- Run `npm install`
 
 ## Running the server
 
@@ -50,7 +51,7 @@ $ cd src && FLASK_APP=voting_server FLASK_ENV=development python -m flask run -h
 
 Then, navigate to [http://localhost:5000/status](http://localhost:5000/status) to see the current state of the server.
 
-## Voting
+## Voting (Server implementation)
 
 If you don't have a signing key yet, generate one by running:
 ```
@@ -74,3 +75,7 @@ $ python src/vote_cli.py reveal
 ```
 
 Finally, navigate to [http://localhost:5000/status](http://localhost:5000/status) to see the voting result.
+
+## Voting (Ethereum implementation)
+
+Run `npx hardhat node` to start the local ethereum node.

@@ -9,7 +9,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
 from provers import ZokratesProver
-
+from web3 import Web3
 VOTE_SERVER = "http://0.0.0.0:5000"
 PROVER = ZokratesProver(Path("."))
 
@@ -86,6 +86,29 @@ def reveal():
 
     r = requests.post(f"{VOTE_SERVER}/reveal_vote", json=reveal_data)
     assert r.status_code == 200, r.text
+
+
+def deploy_contract(contract_path, w3, *args):
+    with open(contract_path, "r") as f:
+        compiled_contract_json = json.load(f)
+    abi = compiled_contract_json["abi"]
+    bytecode = compiled_contract_json["bytecode"]
+    contract = w3.eth.contract(abi=abi, bytecode=bytecode)
+    tx_hash = contract.constructor(*args).transact()
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    return tx_receipt.contractAddress
+
+
+@app.command()
+def deploy_voting_contract():
+    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
+    print(w3.isConnected())
+    account = w3.eth.account.privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+
+    verifier_address = deploy_contract("artifacts/contracts/verifier.sol/Verifier.json", w3)
+    ballot_address = deploy_contract("artifacts/contracts/Ballot.sol/Ballot.json", w3, verifier_address)
+
+    print(ballot_address)
 
 if __name__ == "__main__":
     app()

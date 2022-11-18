@@ -3,6 +3,7 @@ node_modules
 key.pub
 vote.json
 .Trash*
+artifacts
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -57,27 +57,30 @@ contract Ballot {
         commits[commit] = true;
     }
 
-    function revealVote(bool _vote, bytes32 serialNumber, bytes32[10] memory commitsForProof, uint proof) public {
+    function revealVote(bool _vote, bytes32 serialNumber, bytes32[10] memory commitsForProof, Verifier.Proof memory proof) public {
         // validate proof
         // call sokrates
-        // uint[85] memory proof_inputs;
-        // uint j = 0;
-        // if (_vote) {
-        //     proof_inputs[j] = 1;
-        // } else {
-        //     proof_inputs[j] = 0;
-        // }
-        // j += 1;
-        // for(uint i = 0; i < 4; i++) {
-        //     proof_inputs[j] = serialNumber[i];
-        //     j += 1;
-        // }
-        // for(uint i = 0; i < 80; i++) {
-        //     proof_inputs[j] = commitsForProof[i];
-        //     j += 1;
-        // }
-        //Verifier v = Verifier(verifierContractAddress);
-        //require(v.test(proof));
+        uint[85] memory proof_inputs;
+        uint j = 0;
+        if (_vote) {
+            proof_inputs[j] = 1;
+        } else {
+            proof_inputs[j] = 0;
+        }
+        j += 1;
+        for(uint i = 3; i >= 0; i--) {
+            proof_inputs[j] = uint256(serialNumber >> (i * 32)) & 0xffffffff ;
+            j += 1;
+        }
+        for(uint c_index = 0; c_index < 10; c_index++) {
+            bytes32 commit = commitsForProof[c_index];
+            for(uint i = 7; i >= 0; i--) {
+                proof_inputs[j] = uint256(commit >> (i * 32)) & 0xffffffff ;
+                j += 1;
+            }
+        }
+        Verifier v = Verifier(verifierContractAddress);
+        require(v.testVerifyTx(proof, proof_inputs));
 
         // is commitsForProof subset of commits
         for (uint i = 0; i < commitsForProof.length; ++i) {

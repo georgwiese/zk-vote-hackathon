@@ -32,13 +32,13 @@ def vote():
     commitment = bytes.fromhex(data["commitment"])
     public_key_str = data["public_key"]
     signature = bytes.fromhex(data["signature"])
-    
-    assert (
-        public_key_str in PUBLIC_KEY_WHITELIST,
+
+    assert public_key_str in PUBLIC_KEY_WHITELIST, (
         "Public key not in whitelist!\n"
         + f"Public key: {public_key_str}\n"
         + f"White list: {PUBLIC_KEY_WHITELIST}"
     )
+
     if "DEBUG_ALLOW_DOUBLE_VOTING" not in os.environ:
         assert public_key_str not in keys_with_commitments, "Public key already voted!"
 
@@ -52,7 +52,6 @@ def vote():
     keys_with_commitments.append(public_key_str)
 
     return "OK"
-
 
 
 @app.route("/reveal_vote", methods=["POST"])

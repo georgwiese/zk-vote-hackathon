@@ -36,6 +36,7 @@ The password necessary to access VS Code will be printed in the console.
 ### Local setup
 
 - Install Zokrates by running `curl -LSfs get.zokrat.es | sh` and adding `~/.zokrates/bin` to your `PATH` variable.
+- (Linux: Run `apt install libgmp3-dev`)
 - Run `pip install -r ./requirements.txt`
 
 ## Running the server
@@ -58,6 +59,11 @@ $ openssl genrsa -out private_key.pem 1024
 ```
 
 This will generate a `private_key.pem` in your working directory, which should be kept secret.
+
+Extract the public key by running:
+```
+openssl rsa -in private_key.pem -outform PEM -pubout -out key.pub
+```
 To whitelist the public key, copy `key.pub` into `accepted_public_keys`.
 
 To vote, run:

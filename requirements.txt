@@ -6,3 +6,4 @@ ecdsa
 fastecdsa
 sympy
 cairo-lang
+web3

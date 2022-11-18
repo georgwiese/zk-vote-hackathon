@@ -13,7 +13,7 @@ from pathlib import Path
 PUBLIC_KEY_WHITELIST = []
 for public_key_path in Path("../accepted_public_keys").glob("*.pub"):
     with public_key_path.open() as f:
-        PUBLIC_KEY_WHITELIST.append(f.read())
+        PUBLIC_KEY_WHITELIST.append(f.read().strip())
 
 # Flask server is started from <project dir> / src
 PROVER = ZokratesProver(Path(".."))

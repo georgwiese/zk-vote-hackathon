@@ -66,6 +66,11 @@ openssl rsa -in private_key.pem -outform PEM -pubout -out key.pub
 ```
 To whitelist the public key, copy `key.pub` into `accepted_public_keys`.
 
+Before the first run, compile the proof:
+```
+cd zokrates_snark/ && ./compile_programm.sh
+```
+
 To vote, run:
 ```
 $ python src/vote_cli.py vote <vote>

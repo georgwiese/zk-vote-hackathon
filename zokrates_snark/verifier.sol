@@ -282,4 +282,9 @@ contract Verifier {
             return false;
         }
     }
+    function testVerifyTx(
+            Proof memory proof, uint[85] memory input
+        ) public view returns (bool r) {
+            r = true;
+    }
 }

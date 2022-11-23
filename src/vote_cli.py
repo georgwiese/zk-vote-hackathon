@@ -9,7 +9,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 
 from provers import ZokratesProver
-
+from web3 import Web3
 VOTE_SERVER = "http://0.0.0.0:5000"
 PROVER = ZokratesProver(Path("."))
 
@@ -86,6 +86,99 @@ def reveal():
 
     r = requests.post(f"{VOTE_SERVER}/reveal_vote", json=reveal_data)
     assert r.status_code == 200, r.text
+
+@app.command()
+def vote_eth(voting_contract_address: str, vote: bool):
+
+    serial_number = os.urandom(128 // 8)
+    secret = os.urandom(128 // 8)
+
+    commitment = PROVER.compute_commit(serial_number, secret, vote)
+
+    print(f"Serial number: {serial_number.hex()}")
+    print(f"Secret:        {secret.hex()}")
+    print(f"Vote:          {vote}")
+    print(f"Commitment:    {commitment.hex()}")
+
+    vote_data = {
+        "commitment": commitment.hex(),
+    }
+    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
+    voting_contract = get_voting_contract(voting_contract_address, w3)
+    print("Sending vote...")
+    voting_contract.functions.vote(commitment.hex()).transact()
+
+    with open("vote.json", "w") as f:
+        json.dump({
+            "commitment": commitment.hex(),
+            "serial_number": serial_number.hex(),
+            "secret": secret.hex(),
+            "vote": vote,
+        }, f)
+    print("Vote was saved to vote.json. Keep it secret!")
+
+@app.command()
+def reveal_eth(voting_contract_address: str):
+
+    with open("vote.json", "r") as f:
+        vote_data = json.load(f)
+
+    serial_number = bytes.fromhex(vote_data["serial_number"])
+    secret = bytes.fromhex(vote_data["secret"])
+    vote = vote_data["vote"]
+
+    # fetch known hashes from contract
+    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
+    voting_contract = get_voting_contract(voting_contract_address, w3)
+
+    # There has to be a better way of fetching all existing commits...
+    num_commits = voting_contract.functions.numCommits().call()
+    known_hashes = []
+    for i in range(num_commits):
+        known_hashes.append(voting_contract.functions.commitList(i).call())
+
+    proof, known_hashes = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
+
+    reveal_data = {
+        "serial_number": serial_number.hex(),
+        "vote": vote,
+        "commitments": [hash_bytes.hex() for hash_bytes in known_hashes],
+        "proof": proof,
+    }
+
+    # TODO send proof to contract
+
+
+def load_contract_abi_and_bytecode(contract_path):
+    with open(contract_path, "r") as f:
+        compiled_contract_json = json.load(f)
+    abi = compiled_contract_json["abi"]
+    bytecode = compiled_contract_json["bytecode"]
+    return abi, bytecode
+
+def deploy_contract(contract_path, w3, *args):
+    abi, bytecode = load_contract_abi_and_bytecode(contract_path)
+    contract = w3.eth.contract(abi=abi, bytecode=bytecode)
+    tx_hash = contract.constructor(*args).transact()
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    return tx_receipt.contractAddress
+
+def get_voting_contract(voting_contract_address, w3):
+    abi, _ = load_contract_abi_and_bytecode("artifacts/contracts/Ballot.sol/Ballot.json")
+    voting_contract = w3.eth.contract(address=voting_contract_address, abi=abi)
+    return voting_contract
+
+
+@app.command()
+def deploy_voting_contract():
+    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
+    print(w3.isConnected())
+    account = w3.eth.account.privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+
+    verifier_address = deploy_contract("artifacts/contracts/verifier.sol/Verifier.json", w3)
+    ballot_address = deploy_contract("artifacts/contracts/Ballot.sol/Ballot.json", w3, verifier_address)
+
+    print(ballot_address)
 
 if __name__ == "__main__":
     app()

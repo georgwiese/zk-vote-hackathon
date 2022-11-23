@@ -19,6 +19,8 @@ contract Ballot {
     address public chairperson;
     mapping(address => Voter) public voters;
     mapping(bytes32 => bool) public commits;
+    bytes32[] public commitList;
+    uint public numCommits;
     mapping(bytes32 => bool) public seenSerialNumbers;
     uint public yesCount;
     uint public voteCount;
@@ -53,8 +55,9 @@ contract Ballot {
         require(sender.hasRightToVote, "Has no right to vote");
         require(!sender.voted, "Already voted.");
         sender.voted = true;
-
+        numCommits += 1;
         commits[commit] = true;
+        commitList.push(commit);
     }
 
     function revealVote(bool _vote, bytes32 serialNumber, bytes32[10] memory commitsForProof, Verifier.Proof memory proof) public {

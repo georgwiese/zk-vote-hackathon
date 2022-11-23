@@ -78,4 +78,4 @@ Finally, navigate to [http://localhost:5000/status](http://localhost:5000/status
 
 ## Voting (Ethereum implementation)
 
-Run `npx hardhat node` to start the local ethereum node.
+- Run `npx hardhat node` to start the local ethereum node.

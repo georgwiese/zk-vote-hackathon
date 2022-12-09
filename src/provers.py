@@ -7,14 +7,20 @@ import json
 import math
 from typing import List, Tuple
 from tempfile import TemporaryDirectory
+import time
 
-# If this constant is adjusted, the one in merkle_proof.zok also needs to be adjusted
-MERKLE_TREE_DEPTH = 3
+from zokrates_pycrypto.gadgets.pedersenHasher import PedersenHasher
 
-def hash_bytes(bytes_to_hash: bytes):
-    hasher = hashlib.sha256()
-    hasher.update(bytes_to_hash)
-    return hasher.digest()
+# If this constant is adjusted, the one in merkle_proof_pedersen.zok also needs to be adjusted
+MERKLE_TREE_DEPTH = 7
+
+pedersen_hasher = PedersenHasher("test")
+
+def hash_bytes_sha256(bytes_to_hash: bytes):
+    return hashlib.sha256(bytes_to_hash).digest()
+
+def hash_bytes_pedersen(bytes_to_hash: bytes):
+    return pedersen_hasher.hash_bytes(bytes_to_hash).compress()
 
 def calculate_merkle_tree(
     hashes: List[bytes],
@@ -27,12 +33,14 @@ def calculate_merkle_tree(
     # If there are not enough elements, fill up with zeros
     hashes += [(0).to_bytes(32, "big")] * (expected_length - len(hashes))
 
+    # print(f"Computing level {len(path)} with {len(hashes)} hashes of the merkle tree: {time.time()}")
     if len(hashes) == 1:
         return hashes[0], directions, path
 
     new_hashes = []
+
     for i in range(0, len(hashes) - 1, 2):
-        new_hashes.append(hash_bytes(hashes[i] + hashes[i + 1]))
+        new_hashes.append(hash_bytes_pedersen(hashes[i] + hashes[i + 1]))
 
         # Memorize the path and directions
         if hashes[i] == current_hash:
@@ -96,9 +104,7 @@ class ZokratesProver(AbstractProver):
         vote_bytes = int(vote).to_bytes(32, "big")
         bytes_to_hash = serial_number + secret + vote_bytes
 
-        hasher = hashlib.sha256()
-        hasher.update(bytes_to_hash)
-        return hasher.digest()
+        return hash_bytes_sha256(bytes_to_hash)
 
 
     def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, bytes]:

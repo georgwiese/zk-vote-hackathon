@@ -1,5 +1,5 @@
 #!/bin/bash
-zokrates compile -i merkle_proof.zok
+zokrates compile -i merkle_proof_pedersen.zok
 # perform the setup phase
 zokrates setup
 

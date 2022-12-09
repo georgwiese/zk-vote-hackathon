@@ -145,6 +145,12 @@ def reveal_eth(voting_contract_address: str):
         "commitments": [hash_bytes.hex() for hash_bytes in known_hashes],
         "proof": proof,
     }
+    def to_ints(hex_str):
+        return (int(hex_str[0], 16), int(hex_str[1], 16))
+
+    proof_abc = (to_ints(proof["proof"]["a"]), (to_ints(proof["proof"]["b"][0]), to_ints(proof["proof"]["b"][1])), to_ints(proof["proof"]["c"]))
+
+    voting_contract.functions.revealVote(vote, serial_number.hex(), known_hashes, proof_abc).transact()
 
     # TODO send proof to contract
 

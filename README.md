@@ -83,16 +83,20 @@ $ python src/vote_cli.py reveal
 Finally, navigate to [http://localhost:5000/status](http://localhost:5000/status) to see the voting result.
 
 ## Voting (Ethereum implementation)
+
 To test the solidity contracts locally install [hardhat](https://hardhat.org/hardhat-runner/docs/getting-started) and
 run your local node
-
-```
-npx hardhat node
-```
 
 Compile the contracts
 ```
 npx hardhat compile
 ```
 
+### Connect to local Hardhat node
+
 Run `npx hardhat node` to start the local ethereum node.
+Then, make sure that `USE_HARDHAT = True` in `vote_cli.py`.
+
+### Connect to Görli test net
+
+Set the `GOERLI_ENDPOINT_URL` and `ETH_PRIVATE_KEY` environment variables, and make sure that `USE_HARDHAT = False` in `vote_cli.py`.

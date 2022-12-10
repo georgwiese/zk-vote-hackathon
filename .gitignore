@@ -4,6 +4,9 @@ key.pub
 vote.json
 .Trash*
 artifacts
+cache
+.vscode
+set_eth_private_key.sh
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

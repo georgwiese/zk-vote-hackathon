@@ -1,19 +1,29 @@
-import typer
-import os
-import requests
 import json
-
+import os
 from pathlib import Path
+
+import requests
+import typer
 from Crypto.Hash import SHA256
 from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
+from web3 import Web3
 
 from provers import ZokratesProver
-from web3 import Web3
+
 VOTE_SERVER = "http://0.0.0.0:5000"
 PROVER = ZokratesProver(Path("."))
 
 app = typer.Typer()
+
+USE_HARDHAT = True
+
+if USE_HARDHAT:
+    HTTP_ENDPOINT_URL = "http://127.0.0.1:8545"
+else:
+    # Connect to Görli test net
+    assert "GOERLI_ENDPOINT_URL" in os.environ, "Please provide a Görli http endpoint via the GOERLI_ENDPOINT_URL environment variable"
+    HTTP_ENDPOINT_URL = os.environ["GOERLI_ENDPOINT_URL"]
 
 @app.command()
 def vote(vote: bool):
@@ -103,10 +113,10 @@ def vote_eth(voting_contract_address: str, vote: bool):
     vote_data = {
         "commitment": commitment.hex(),
     }
-    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
     voting_contract = get_voting_contract(voting_contract_address, w3)
     print("Sending vote...")
-    voting_contract.functions.vote(commitment.hex()).transact()
+    send_transaction(w3, voting_contract.functions.vote(commitment.hex()).build_transaction())
 
     with open("vote.json", "w") as f:
         json.dump({
@@ -128,7 +138,7 @@ def reveal_eth(voting_contract_address: str):
     vote = vote_data["vote"]
 
     # fetch known hashes from contract
-    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
     voting_contract = get_voting_contract(voting_contract_address, w3)
 
     # There has to be a better way of fetching all existing commits...
@@ -162,10 +172,27 @@ def load_contract_abi_and_bytecode(contract_path):
     bytecode = compiled_contract_json["bytecode"]
     return abi, bytecode
 
+
+def send_transaction(w3, transaction):
+
+    if USE_HARDHAT:
+        # Hardhat default private key
+        private_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+    else:
+        assert "ETH_PRIVATE_KEY" in os.environ, "Please provide a private key via the ETH_PRIVATE_KEY env variable"
+        private_key = os.environ["ETH_PRIVATE_KEY"]
+
+    address = w3.eth.account.from_key(private_key).address
+
+    transaction["nonce"] = w3.eth.getTransactionCount(address)
+    signed = w3.eth.account.sign_transaction(transaction, private_key)
+    return w3.eth.send_raw_transaction(signed.rawTransaction)
+
 def deploy_contract(contract_path, w3, *args):
     abi, bytecode = load_contract_abi_and_bytecode(contract_path)
     contract = w3.eth.contract(abi=abi, bytecode=bytecode)
-    tx_hash = contract.constructor(*args).transact()
+    transaction = contract.constructor(*args).build_transaction()
+    tx_hash = send_transaction(w3, transaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     return tx_receipt.contractAddress
 
@@ -177,9 +204,7 @@ def get_voting_contract(voting_contract_address, w3):
 
 @app.command()
 def deploy_voting_contract():
-    w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
-    print(w3.isConnected())
-    account = w3.eth.account.privateKeyToAccount("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80")
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
 
     verifier_address = deploy_contract("artifacts/contracts/verifier.sol/Verifier.json", w3)
     ballot_address = deploy_contract("artifacts/contracts/Ballot.sol/Ballot.json", w3, verifier_address)

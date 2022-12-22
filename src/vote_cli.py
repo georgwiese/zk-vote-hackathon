@@ -98,7 +98,9 @@ def reveal():
     assert r.status_code == 200, r.text
 
 @app.command()
-def vote_eth(voting_contract_address: str, vote: bool):
+def vote_eth(vote: bool):
+
+    voting_contract_address = get_deployed_contract_address()
 
     serial_number = os.urandom(128 // 8)
     secret = os.urandom(128 // 8)
@@ -110,9 +112,6 @@ def vote_eth(voting_contract_address: str, vote: bool):
     print(f"Vote:          {vote}")
     print(f"Commitment:    {commitment.hex()}")
 
-    vote_data = {
-        "commitment": commitment.hex(),
-    }
     w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
     voting_contract = get_voting_contract(voting_contract_address, w3)
     print("Sending vote...")
@@ -124,11 +123,13 @@ def vote_eth(voting_contract_address: str, vote: bool):
             "serial_number": serial_number.hex(),
             "secret": secret.hex(),
             "vote": vote,
-        }, f)
+        }, f, indent=2)
     print("Vote was saved to vote.json. Keep it secret!")
 
 @app.command()
-def reveal_eth(voting_contract_address: str):
+def reveal_eth():
+
+    voting_contract_address = get_deployed_contract_address()
 
     with open("vote.json", "r") as f:
         vote_data = json.load(f)
@@ -149,20 +150,12 @@ def reveal_eth(voting_contract_address: str):
 
     proof, known_hashes = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
 
-    reveal_data = {
-        "serial_number": serial_number.hex(),
-        "vote": vote,
-        "commitments": [hash_bytes.hex() for hash_bytes in known_hashes],
-        "proof": proof,
-    }
-
     def to_ints(hex_str):
         return (int(hex_str[0], 16), int(hex_str[1], 16))
 
     proof_abc = (to_ints(proof["proof"]["a"]), (to_ints(proof["proof"]["b"][0]), to_ints(proof["proof"]["b"][1])), to_ints(proof["proof"]["c"]))
-    voting_contract.functions.revealVote(vote, serial_number.hex(), known_hashes, proof_abc).transact()
+    voting_contract.functions.revealVote(vote, serial_number, known_hashes, proof_abc).transact()
 
-    # TODO send proof to contract
 
 
 def load_contract_abi_and_bytecode(contract_path):
@@ -209,7 +202,19 @@ def deploy_voting_contract():
     verifier_address = deploy_contract("artifacts/contracts/verifier.sol/Verifier.json", w3)
     ballot_address = deploy_contract("artifacts/contracts/Ballot.sol/Ballot.json", w3, verifier_address)
 
-    print(ballot_address)
+    with open("contract.json", "w") as f:
+        json.dump({
+            "contractAddress": ballot_address
+        }, f)
+
+    print(f"Contract deployed to {ballot_address}. Created contract.json to store the address.")
+
+def get_deployed_contract_address():
+
+    assert os.path.exists("contract.json"), "contract.json does not exist, run deploy-voting-contract command first!"
+
+    with open("contract.json") as f:
+        return json.load(f)["contractAddress"]
 
 if __name__ == "__main__":
     app()

@@ -100,3 +100,52 @@ Then, make sure that `USE_HARDHAT = True` in `vote_cli.py`.
 ### Connect to Görli test net
 
 Set the `GOERLI_ENDPOINT_URL` and `ETH_PRIVATE_KEY` environment variables, and make sure that `USE_HARDHAT = False` in `vote_cli.py`.
+
+### Setup
+
+To deploy the smart contract, run:
+
+```bash
+python src/vote_cli.py eth-deploy-voting-contract
+```
+
+Or, to participate in an already deployed vote, run:
+
+```bash
+python src/vote_cli.py eth-set-deployed-contract <address>
+```
+
+Next, ask the chairperson (the account who deployed the contract) to give you a voting right by running:
+
+```bash
+python src/vote_cli.py eth-give-right-to-vote <your address>
+```
+
+### Vote
+
+The voting consists of two steps: First, you commit to a vote by running:
+
+```bash
+python src/vote_cli.py eth-vote <yes/no>
+```
+
+This needs to be run using the account that has voting rights.
+As a result, this transaction can be connected to your identity.
+However, this will send your vote in encrypted form, so privacy is preserved.
+
+Next, reveal your vote by running:
+
+```bash
+python src/vote_cli.py eth-reveal
+```
+
+This will decrypt your vote.
+This can be run using any account, so use one that cannot be connected to your identity to preserve privacy.
+
+### Result
+
+As a last step, get the result by running:
+
+```bash
+python src/vote_cli.py eth-get-results
+```

@@ -16,7 +16,7 @@ PROVER = ZokratesProver(Path("."))
 
 app = typer.Typer()
 
-USE_HARDHAT = True
+USE_HARDHAT = False
 
 if USE_HARDHAT:
     HTTP_ENDPOINT_URL = "http://127.0.0.1:8545"
@@ -97,8 +97,42 @@ def reveal():
     r = requests.post(f"{VOTE_SERVER}/reveal_vote", json=reveal_data)
     assert r.status_code == 200, r.text
 
+
 @app.command()
-def vote_eth(vote: bool):
+def eth_deploy_voting_contract():
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
+
+    verifier_address = deploy_contract("artifacts/contracts/verifier.sol/Verifier.json", w3)
+    ballot_address = deploy_contract("artifacts/contracts/Ballot.sol/Ballot.json", w3, verifier_address)
+
+    with open("contract.json", "w") as f:
+        json.dump({
+            "contractAddress": ballot_address
+        }, f)
+
+    print(f"Contract deployed to {ballot_address}. Created contract.json to store the address.")
+
+
+@app.command()
+def eth_set_deployed_contract(ballot_address: str):
+
+    with open("contract.json", "w") as f:
+        json.dump({
+            "contractAddress": ballot_address
+        }, f)
+
+    print(f"Created contract.json to store the address.")
+
+@app.command()
+def eth_give_right_to_vote(address: str):
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
+    voting_contract_address = get_deployed_contract_address()
+
+    voting_contract = get_voting_contract(voting_contract_address, w3)
+    send_transaction(w3, voting_contract.functions.giveRightToVote(address).build_transaction())
+
+@app.command()
+def eth_vote(vote: bool):
 
     voting_contract_address = get_deployed_contract_address()
 
@@ -130,7 +164,7 @@ def vote_eth(vote: bool):
     print("Vote was saved to vote.json. Keep it secret!")
 
 @app.command()
-def reveal_eth():
+def eth_reveal():
 
     voting_contract_address = get_deployed_contract_address()
 
@@ -161,6 +195,22 @@ def reveal_eth():
     send_transaction(w3, tx)
 
 
+@app.command()
+def eth_get_results():
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
+    voting_contract_address = get_deployed_contract_address()
+    voting_contract = get_voting_contract(voting_contract_address, w3)
+    
+    num_commits = voting_contract.functions.numCommits().call()
+    yes_count = voting_contract.functions.yesCount().call()
+    vote_count = voting_contract.functions.voteCount().call()
+    percentage = int((yes_count / vote_count) * 100) if vote_count > 0 else "--"
+
+    print(f"=== RESULTS ===")
+    print(f"Number of votes: {num_commits}")
+    print(f"Number of revealed votes: {vote_count}")
+    print(f"Yes counts: {yes_count} ({percentage}%)")
+
 
 def load_contract_abi_and_bytecode(contract_path):
     with open(contract_path, "r") as f:
@@ -175,6 +225,8 @@ def send_transaction(w3, transaction):
     if USE_HARDHAT:
         # Hardhat default private key
         private_key = "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        # Second account, for testing:
+        # private_key = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
     else:
         assert "ETH_PRIVATE_KEY" in os.environ, "Please provide a private key via the ETH_PRIVATE_KEY env variable"
         private_key = os.environ["ETH_PRIVATE_KEY"]
@@ -200,21 +252,6 @@ def get_voting_contract(voting_contract_address, w3):
     abi, _ = load_contract_abi_and_bytecode("artifacts/contracts/Ballot.sol/Ballot.json")
     voting_contract = w3.eth.contract(address=voting_contract_address, abi=abi)
     return voting_contract
-
-
-@app.command()
-def deploy_voting_contract():
-    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
-
-    verifier_address = deploy_contract("artifacts/contracts/verifier.sol/Verifier.json", w3)
-    ballot_address = deploy_contract("artifacts/contracts/Ballot.sol/Ballot.json", w3, verifier_address)
-
-    with open("contract.json", "w") as f:
-        json.dump({
-            "contractAddress": ballot_address
-        }, f)
-
-    print(f"Contract deployed to {ballot_address}. Created contract.json to store the address.")
 
 def get_deployed_contract_address():
 

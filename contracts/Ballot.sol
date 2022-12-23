@@ -2,8 +2,6 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-import "hardhat/console.sol";
-
 contract Ballot {
     struct Voter {
         bool hasRightToVote;
@@ -48,7 +46,6 @@ contract Ballot {
         Voter storage sender = voters[msg.sender];
         require(sender.hasRightToVote, "Has no right to vote");
         require(!sender.voted, "Already voted.");
-        console.log("User voted:", msg.sender);
         sender.voted = true;
         numCommits += 1;
         commits[commit] = true;
@@ -61,8 +58,6 @@ contract Ballot {
         bytes32[10] memory commitsForProof,
         Verifier.Proof memory proof
     ) public {
-        console.log(uint256(serialNumber));
-
         // validate proof
         // call sokrates
         uint256[85] memory proof_inputs;
@@ -92,9 +87,6 @@ contract Ballot {
                 }
             }
         }
-        for (uint256 i = 0; i < 20; i++) {
-            console.log(proof_inputs[i]);
-        }
 
         Verifier v = Verifier(verifierContractAddress);
         require(v.verifyTx(proof, proof_inputs));
@@ -114,13 +106,6 @@ contract Ballot {
             yesCount += 1;
         }
         voteCount += 1;
-    }
-
-    function testVerifyTx(Verifier.Proof memory proof, uint256[85] memory input)
-        public
-    {
-        Verifier v = Verifier(verifierContractAddress);
-        require(v.testVerifyTx(proof, input));
     }
 }
 

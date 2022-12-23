@@ -115,7 +115,10 @@ def vote_eth(vote: bool):
     w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
     voting_contract = get_voting_contract(voting_contract_address, w3)
     print("Sending vote...")
-    send_transaction(w3, voting_contract.functions.vote(commitment.hex()).build_transaction())
+    send_transaction(w3, voting_contract.functions.vote(commitment.hex()).build_transaction({
+        # Gas estimation fails for some reason, so set limit manually
+        "gas": 2000000
+    }))
 
     with open("vote.json", "w") as f:
         json.dump({
@@ -154,7 +157,8 @@ def reveal_eth():
         return (int(hex_str[0], 16), int(hex_str[1], 16))
 
     proof_abc = (to_ints(proof["proof"]["a"]), (to_ints(proof["proof"]["b"][0]), to_ints(proof["proof"]["b"][1])), to_ints(proof["proof"]["c"]))
-    voting_contract.functions.revealVote(vote, serial_number, known_hashes, proof_abc).transact()
+    tx = voting_contract.functions.revealVote(vote, serial_number, known_hashes, proof_abc).build_transaction()
+    send_transaction(w3, tx)
 
 
 
@@ -177,16 +181,19 @@ def send_transaction(w3, transaction):
 
     address = w3.eth.account.from_key(private_key).address
 
+    # Sometimes goes is not enough to deploy the contract...
+    transaction["gas"] = transaction["gas"] * 2
+    
     transaction["nonce"] = w3.eth.getTransactionCount(address)
     signed = w3.eth.account.sign_transaction(transaction, private_key)
-    return w3.eth.send_raw_transaction(signed.rawTransaction)
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    return w3.eth.wait_for_transaction_receipt(tx_hash)
 
 def deploy_contract(contract_path, w3, *args):
     abi, bytecode = load_contract_abi_and_bytecode(contract_path)
     contract = w3.eth.contract(abi=abi, bytecode=bytecode)
     transaction = contract.constructor(*args).build_transaction()
-    tx_hash = send_transaction(w3, transaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    tx_receipt = send_transaction(w3, transaction)
     return tx_receipt.contractAddress
 
 def get_voting_contract(voting_contract_address, w3):

@@ -2,11 +2,57 @@ from abc import ABC, abstractmethod
 import hashlib
 import shutil
 import os
-import random
 from pathlib import Path
 import json
+import math
 from typing import List, Tuple
 from tempfile import TemporaryDirectory
+import time
+
+from zokrates_pycrypto.gadgets.pedersenHasher import PedersenHasher
+
+# If this constant is adjusted, the one in merkle_proof_pedersen.zok also needs to be adjusted
+MERKLE_TREE_DEPTH = 7
+
+pedersen_hasher = PedersenHasher("test")
+
+def hash_bytes_sha256(bytes_to_hash: bytes):
+    return hashlib.sha256(bytes_to_hash).digest()
+
+def hash_bytes_pedersen(bytes_to_hash: bytes):
+    return pedersen_hasher.hash_bytes(bytes_to_hash).compress()
+
+def calculate_merkle_tree(
+    hashes: List[bytes],
+    expected_length: int,
+    current_hash: bytes = None,
+    directions: List[bool] = [],
+    path: List[bytes] = []
+):
+    assert math.log2(expected_length).is_integer(), f"Merkle tree expected length needs to be a power of 2, but is {expected_length}"
+    # If there are not enough elements, fill up with zeros
+    hashes += [(0).to_bytes(32, "big")] * (expected_length - len(hashes))
+
+    # print(f"Computing level {len(path)} with {len(hashes)} hashes of the merkle tree: {time.time()}")
+    if len(hashes) == 1:
+        return hashes[0], directions, path
+
+    new_hashes = []
+
+    for i in range(0, len(hashes) - 1, 2):
+        new_hashes.append(hash_bytes_pedersen(hashes[i] + hashes[i + 1]))
+
+        # Memorize the path and directions
+        if hashes[i] == current_hash:
+            directions.append(False)
+            path.append(hashes[i + 1])
+            current_hash = new_hashes[-1]
+        elif hashes[i + 1] == current_hash:
+            directions.append(True)
+            path.append(hashes[i])
+            current_hash = new_hashes[-1]
+
+    return calculate_merkle_tree(new_hashes, expected_length // 2, current_hash, directions, path)
 
 class AbstractProver(ABC):
 
@@ -16,7 +62,7 @@ class AbstractProver(ABC):
         pass
 
     @abstractmethod
-    def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, List[bytes]]:
+    def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, bytes]:
         """Computes a proof that serial number, secret, and vote hash to a value that's in `known_hashes`.
         
         The `known_hashes` might be modified by the prover, for example by sampling a subset,
@@ -25,7 +71,7 @@ class AbstractProver(ABC):
         pass
     
     @abstractmethod
-    def verify(self, serial_number: bytes, vote: bool, known_hashes: List[bytes], proof: dict) -> None:
+    def verify(self, serial_number: bytes, vote: bool, root: bytes, proof: dict) -> None:
         """Verfies a proof, including that fact that public arguments are as stated."""
         pass
 
@@ -39,7 +85,6 @@ class ZokratesProver(AbstractProver):
         """Converts bytes to a list of 32-bit integers."""
 
         assert len(input_bytes) % 4 == 0
-        length = len(input_bytes) // 4
 
         return [
             int.from_bytes(input_bytes[i : i + 4], "big")
@@ -59,37 +104,37 @@ class ZokratesProver(AbstractProver):
         vote_bytes = int(vote).to_bytes(32, "big")
         bytes_to_hash = serial_number + secret + vote_bytes
 
-        hasher = hashlib.sha256()
-        hasher.update(bytes_to_hash)
-        return hasher.digest()
+        return hash_bytes_sha256(bytes_to_hash)
 
 
-    def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, List[bytes]]:
+    def compute_proof(self, serial_number: bytes, secret: bytes, vote: bool, known_hashes: List[bytes]) -> Tuple[dict, bytes]:
+
+        # Build merkle tree and compute merkle path
+        correct_hash = self.compute_commit(serial_number, secret, vote)
 
         # Make sure that we have the right number of known hashes
-        N = 10
-        if len(known_hashes) <= N:
-            # Fill up with zeros
-            known_hashes += [(0).to_bytes(32, "big")] * (N - len(known_hashes))
-        else:
-            # Sample N hashes, making sure the correct one is included
-            correct_hash = self.compute_commit(serial_number, secret, vote)
-            known_hashes = random.sample(known_hashes, N)
-            if not correct_hash in known_hashes:
-                # Replace random hash with correct hash
-                known_hashes[random.randrange(N)] = correct_hash
+        N = 2 ** MERKLE_TREE_DEPTH
+        assert len(known_hashes) <= N, f"There are more than {N} votes which is not supported. Increase the DEPTH of the merkle tree."
+
+        root, directions, path = calculate_merkle_tree(known_hashes, N, correct_hash)
 
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
             serial_number_str = self.bytes_to_u32_string(serial_number)
             secret_str = self.bytes_to_u32_string(secret)
-            known_hashes_str = " ".join([
-                self.bytes_to_u32_string(known_hash)
-                for known_hash in known_hashes
+            root_str = self.bytes_to_u32_string(root)
+            directions_str = " ".join(list(map(str, [
+                int(direction)
+                for direction in directions
+            ])))
+            path_str = " ".join([
+                self.bytes_to_u32_string(node)
+                for node in path
             ])
 
-            compute_witness_command = f"zokrates compute-witness -a {int(vote)} {serial_number_str} {secret_str} {known_hashes_str}"
+            compute_witness_command = ("zokrates compute-witness -a " +
+                f"{int(vote)} {serial_number_str} {secret_str} {root_str} {directions_str} {path_str}")
 
             shutil.copyfile(str(self.project_dir / "zokrates_snark" / "out"), tmpdir / "out")
             shutil.copyfile(str(self.project_dir / "zokrates_snark" / "proving.key"), tmpdir / "proving.key")
@@ -99,10 +144,10 @@ class ZokratesProver(AbstractProver):
             ) == 0
 
             with (tmpdir / "proof.json").open("r") as f:
-                return json.load(f), known_hashes
+                return json.load(f), root
     
 
-    def verify(self, serial_number: bytes, vote: bool, known_hashes: List[bytes], proof: dict) -> None:
+    def verify(self, serial_number: bytes, vote: bool, root: bytes, proof: dict) -> None:
         with TemporaryDirectory() as tmpdir:
 
             tmpdir = Path(tmpdir)
@@ -116,15 +161,14 @@ class ZokratesProver(AbstractProver):
                 f"cd {str(tmpdir)} && zokrates verify"
             ) == 0
 
-            # Also assert that the public inputs to the proof are as expected
-            assert len(proof["inputs"]) == 85
+            assert len(proof["inputs"]) == 13, f"Proof actually has {len(proof['inputs'])} inputs"
             actual_inputs_hex = "".join(
                 [s[-8:] for s in proof["inputs"]]
             )
             expected_inputs_hex = (
                 int(vote).to_bytes(4, "big").hex()
                 + serial_number.hex()
-                + "".join(known_hash.hex() for known_hash in known_hashes)
+                + root.hex()
             )
             assert actual_inputs_hex == expected_inputs_hex, f"{actual_inputs_hex} does not match {expected_inputs_hex}!"
 
@@ -141,6 +185,6 @@ if __name__ == "__main__":
     commit = strategy.compute_commit(serial_number, secret, vote)
 
     known_hashes = [commit] + [os.urandom(256 // 8) for _ in range(12)]
-    proof, known_hashes = strategy.compute_proof(serial_number, secret, vote, known_hashes)
+    proof, root = strategy.compute_proof(serial_number, secret, vote, known_hashes)
 
-    strategy.verify(serial_number, vote, known_hashes, proof)
+    strategy.verify(serial_number, vote, root, proof)

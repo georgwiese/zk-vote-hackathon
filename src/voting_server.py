@@ -6,7 +6,7 @@ from Crypto.Hash import SHA256
 from Crypto.Signature import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
-from provers import ZokratesProver
+from provers import ZokratesProver, calculate_merkle_tree, MERKLE_TREE_DEPTH
 
 from pathlib import Path
 
@@ -62,15 +62,15 @@ def reveal_vote():
     data = json.loads(request.data)
     serial_number = bytes.fromhex(data["serial_number"])
     vote = data["vote"]
-    commitments_for_proof = data["commitments"]
+    root_for_proof = bytes.fromhex(data["root"])
     proof = data["proof"]
 
     assert serial_number not in seen_serial_numbers, "Serial number already revealed!"
-    for commitment in commitments_for_proof:
-        if commitment != "0" * 64:  # Prover is allowed to add zero hashes
-            assert commitment in commitments, f"Proof used unknown commitments: {commitment}"
 
-    PROVER.verify(serial_number, vote, [bytes.fromhex(c_hex) for c_hex in commitments_for_proof], proof)
+    actual_root, _, _ = calculate_merkle_tree([bytes.fromhex(c_hex) for c_hex in commitments], 2 ** MERKLE_TREE_DEPTH)
+    assert actual_root == root_for_proof, f"Actual merkle tree root differs from the root the client sent: {actual_root} vs. {root_for_proof}"
+
+    PROVER.verify(serial_number, vote, root_for_proof, proof)
 
     seen_serial_numbers.append(serial_number)
     if vote:

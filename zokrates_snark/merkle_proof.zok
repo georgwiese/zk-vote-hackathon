@@ -1,0 +1,31 @@
+import "hashes/sha256/512bitPadded" as hash;
+import "hashes/utils/256bitsDirectionHelper" as multiplex;
+
+const u32 DEPTH = 3;
+
+// Merke-Tree inclusion proof for tree depth 3 using sha256
+// directionSelector => true if current digest is on the rhs of the hashes
+
+def main(\
+  bool vote,\
+  u32[4] serial_number,\
+  private u32[4] secret,\
+  u32[8] root,\
+  private bool[DEPTH] directionSelector,\
+  private u32[DEPTH][8] path\
+) {
+  u32[8] leaf = hash([...serial_number, ...secret], [0, 0, 0, 0, 0, 0, 0, if vote { 1 } else { 0 }]);
+
+  // Start from the leaf
+  u32[8] mut digest = leaf;
+
+  // Loop up the tree
+  for u32 i in 0..DEPTH {
+    // Concatenate two u32[8] arrays in an order defined by a boolean selector
+    u32[16] preimage = multiplex(directionSelector[i], digest, path[i]);
+    digest = hash(preimage[..8], preimage[8..]);
+  }
+
+  assert(digest == root);
+  return;
+}

@@ -85,12 +85,12 @@ def reveal():
         for hash_hex in requests.get(f"{VOTE_SERVER}/status").json()["commitments"]
     ]
 
-    proof, known_hashes = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
+    proof, root = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
 
     reveal_data = {
         "serial_number": serial_number.hex(),
         "vote": vote,
-        "commitments": [hash_bytes.hex() for hash_bytes in known_hashes],
+        "root": root.hex(),
         "proof": proof,
     }
 

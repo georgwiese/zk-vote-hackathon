@@ -4,6 +4,7 @@ import math
 import os
 import shutil
 from abc import ABC, abstractmethod
+from functools import cache
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import List, Tuple
@@ -18,6 +19,7 @@ pedersen_hasher = PedersenHasher("test")
 def hash_bytes_sha256(bytes_to_hash: bytes):
     return hashlib.sha256(bytes_to_hash).digest()
 
+@cache
 def hash_bytes_pedersen(bytes_to_hash: bytes):
     return pedersen_hasher.hash_bytes(bytes_to_hash).compress()
 

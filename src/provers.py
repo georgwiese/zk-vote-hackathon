@@ -1,13 +1,12 @@
-from abc import ABC, abstractmethod
 import hashlib
-import shutil
-import os
-from pathlib import Path
 import json
 import math
-from typing import List, Tuple
+import os
+import shutil
+from abc import ABC, abstractmethod
+from pathlib import Path
 from tempfile import TemporaryDirectory
-import time
+from typing import List, Tuple
 
 from zokrates_pycrypto.gadgets.pedersenHasher import PedersenHasher
 

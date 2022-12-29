@@ -9,7 +9,7 @@ from Crypto.PublicKey import RSA
 from Crypto.Signature import PKCS1_v1_5
 from web3 import Web3
 
-from provers import ZokratesProver
+from provers import MERKLE_TREE_DEPTH, ZokratesProver, calculate_merkle_tree
 
 VOTE_SERVER = "http://0.0.0.0:5000"
 PROVER = ZokratesProver(Path("."))
@@ -132,6 +132,27 @@ def eth_give_right_to_vote(address: str):
     send_transaction(w3, voting_contract.functions.giveRightToVote(address).build_transaction())
 
 @app.command()
+def eth_set_merkle_root():
+    w3 = Web3(Web3.HTTPProvider(HTTP_ENDPOINT_URL))
+    voting_contract_address = get_deployed_contract_address()
+    voting_contract = get_voting_contract(voting_contract_address, w3)
+
+    num_commits = voting_contract.functions.numCommits().call()
+    known_hashes = []
+    for i in range(num_commits):
+        known_hashes.append(voting_contract.functions.commitList(i).call())
+    
+    # This actually computes the Merkle proof for the first commit, but we're only interested in the merkle root
+    print("Computing Merkle root...")
+    merkle_root, _, _ = calculate_merkle_tree(known_hashes, 2 ** MERKLE_TREE_DEPTH, known_hashes[0])
+
+    print(f"Merkle root is: {merkle_root.hex()}")
+    send_transaction(w3, voting_contract.functions.setMerkleRoot(int(merkle_root.hex(), 16)).build_transaction({
+        # Gas estimation fails for some reason, so set limit manually
+        "gas": 2000000
+    }))
+
+@app.command()
 def eth_vote(vote: bool):
 
     voting_contract_address = get_deployed_contract_address()
@@ -185,13 +206,18 @@ def eth_reveal():
     for i in range(num_commits):
         known_hashes.append(voting_contract.functions.commitList(i).call())
 
-    proof, known_hashes = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
+    proof, merkle_root = PROVER.compute_proof(serial_number, secret, vote, known_hashes)
+    print(f"Merkle root is: {merkle_root.hex()}")
+    merkle_root_int = int(merkle_root.hex(), 16)
+    stored_merkle_root = voting_contract.functions.merkleRoot().call()
+    assert stored_merkle_root != 0, "The chairperson has not set the Merkle root yet!"
+    assert stored_merkle_root == merkle_root_int, "Merkle Root is different from what was set by the chairperson!"
 
     def to_ints(hex_str):
         return (int(hex_str[0], 16), int(hex_str[1], 16))
 
     proof_abc = (to_ints(proof["proof"]["a"]), (to_ints(proof["proof"]["b"][0]), to_ints(proof["proof"]["b"][1])), to_ints(proof["proof"]["c"]))
-    tx = voting_contract.functions.revealVote(vote, serial_number, known_hashes, proof_abc).build_transaction()
+    tx = voting_contract.functions.revealVote(vote, serial_number, proof_abc).build_transaction()
     send_transaction(w3, tx)
 
 

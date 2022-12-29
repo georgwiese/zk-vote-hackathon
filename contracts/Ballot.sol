@@ -2,6 +2,8 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
+import "hardhat/console.sol";
+
 contract Ballot {
     struct Voter {
         bool hasRightToVote;
@@ -24,6 +26,7 @@ contract Ballot {
     uint256 public yesCount;
     uint256 public voteCount;
     address public verifierContractAddress;
+    uint256 public merkleRoot;
 
     constructor(address _verifierContractAddress) {
         chairperson = msg.sender;
@@ -52,15 +55,27 @@ contract Ballot {
         commitList.push(commit);
     }
 
+    function setMerkleRoot(uint256 newMerkleRoot) public {
+        require(
+            msg.sender == chairperson,
+            "Only chairperson can set the merkle root!"
+        );
+        merkleRoot = newMerkleRoot;
+    }
+
     function revealVote(
         bool _vote,
         bytes32 serialNumber,
-        bytes32[10] memory commitsForProof,
         Verifier.Proof memory proof
     ) public {
+        require(
+            merkleRoot != 0,
+            "Merkle root has not been set by the chairperson!"
+        );
+
         // validate proof
         // call sokrates
-        uint256[85] memory proof_inputs;
+        uint256[13] memory proof_inputs;
         uint256 j = 0;
         if (_vote) {
             proof_inputs[j] = 1;
@@ -77,27 +92,21 @@ contract Ballot {
                 break;
             }
         }
-        for (uint256 c_index = 0; c_index < 10; c_index++) {
-            bytes32 commit = commitsForProof[c_index];
-            for (uint256 i = 7; i >= 0; i--) {
-                proof_inputs[j] = uint256(commit >> (i * 32)) & 0xffffffff;
-                j += 1;
-                if (i == 0) {
-                    break;
-                }
+        for (uint256 i = 7; i >= 0; --i) {
+            proof_inputs[j] = uint256(merkleRoot >> (i * 32)) & 0xffffffff;
+            j += 1;
+            if (i == 0) {
+                break;
             }
+        }
+
+        console.log("Inputs:");
+        for (uint256 i = 0; i < 13; i++) {
+            console.log(proof_inputs[i]);
         }
 
         Verifier v = Verifier(verifierContractAddress);
-        require(v.verifyTx(proof, proof_inputs));
-
-        // is commitsForProof subset of commits
-        for (uint256 i = 0; i < commitsForProof.length; ++i) {
-            bytes32 commitInProof = commitsForProof[i];
-            if (commitInProof != 0) {
-                require(commits[commitInProof]);
-            }
-        }
+        require(v.verifyTx(proof, proof_inputs), "Proof does not verify!");
 
         require(!seenSerialNumbers[serialNumber], "Already revealed!");
         seenSerialNumbers[serialNumber] = true;
@@ -126,12 +135,7 @@ interface Verifier {
         G1Point c;
     }
 
-    function verifyTx(Proof memory proof, uint256[85] memory input)
-        external
-        view
-        returns (bool r);
-
-    function testVerifyTx(Proof memory proof, uint256[85] memory input)
+    function verifyTx(Proof memory proof, uint256[13] memory input)
         external
         view
         returns (bool r);

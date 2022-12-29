@@ -7,3 +7,4 @@ fastecdsa
 sympy
 cairo-lang
 web3
+zokrates-pycrypto

@@ -138,6 +138,20 @@ This needs to be run using the account that has voting rights.
 As a result, this transaction can be connected to your identity.
 However, this will send your vote in encrypted form, so privacy is preserved.
 
+### Start the reveal phase
+
+Next, the chairperson has to set the Merkle root to be used for all the reveal proofs:
+
+```bash
+python src/vote_cli.py eth-set-merkle-root
+```
+
+In the next step, the Merkle root is re-computed by all the voters.
+If the chairperson sets an incorrect Merkle root, all the reveals fail.
+So, one has to trust the chairperson not to freeze the election.
+
+### Reveal your vote
+
 Next, reveal your vote by running:
 
 ```bash

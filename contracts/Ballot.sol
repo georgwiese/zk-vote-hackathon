@@ -58,8 +58,9 @@ contract Ballot {
     function setMerkleRoot(uint256 newMerkleRoot) public {
         require(
             msg.sender == chairperson,
-            "Only chairperson can set the merkle root!"
+            "Only chairperson can set the Merkle root!"
         );
+        require(merkleRoot == 0, "The Merkle root can only be set once!");
         merkleRoot = newMerkleRoot;
     }
 
